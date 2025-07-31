@@ -1,6 +1,11 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from '@clerk/nextjs';
 import { dark } from '@clerk/themes';
+import { Toaster } from 'react-hot-toast';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ErrorBoundaryProvider } from '@/components/ErrorBoundary';
+import { ThemeProvider } from '@/components/ThemeProvider';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +16,19 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: (failureCount, error: any) => {
+        if (error?.status === 404) return false;
+        return failureCount < 3;
+      },
+    },
+  },
 });
 
 export const metadata = {
@@ -35,9 +53,18 @@ export const metadata = {
     description: "Advanced AI-powered forex trading bot with comprehensive risk management",
     creator: "@forexbotpro",
   },
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
 };
 
-export default function RootLayout({ children }) {
+interface RootLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <ClerkProvider
       appearance={{
@@ -57,11 +84,43 @@ export default function RootLayout({ children }) {
         }
       }}
     >
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-900 text-white`}
         >
-          {children}
+          <ErrorBoundaryProvider>
+            <QueryClientProvider client={queryClient}>
+              <ThemeProvider>
+                {children}
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: '#1e293b',
+                      color: '#f1f5f9',
+                      border: '1px solid #334155',
+                    },
+                    success: {
+                      iconTheme: {
+                        primary: '#22c55e',
+                        secondary: '#f1f5f9',
+                      },
+                    },
+                    error: {
+                      iconTheme: {
+                        primary: '#ef4444',
+                        secondary: '#f1f5f9',
+                      },
+                    },
+                  }}
+                />
+              </ThemeProvider>
+              {process.env.NODE_ENV === 'development' && (
+                <ReactQueryDevtools initialIsOpen={false} />
+              )}
+            </QueryClientProvider>
+          </ErrorBoundaryProvider>
         </body>
       </html>
     </ClerkProvider>
